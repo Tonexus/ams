@@ -19,6 +19,7 @@ from numba import cuda
 # eq 01, bits 02-03: XY YZ ZX
 # eq 00, bits 00-01: XZ YX ZY
 
+# list of equations
 EQS = [
     ["XZ", "YX", "ZY"],
     ["XY", "YZ", "ZX"],
@@ -37,6 +38,7 @@ EQS = [
     ["IX", "XI", "XX"],
 ]
 
+# list of variables
 VARS = [
     "IX",
     "IY",
@@ -63,8 +65,11 @@ def get_pos(var_name):
             if var == var_name:
                 yield (j, k)
 
+# for each variable, tuples of equation number that variable is present in
+# and position of variable in that equation
 POSS = tuple(tuple(get_pos(v)) for v in VARS)
 
+# gets nth bit from a bitvstring
 def opt_get_bit(use_cuda):
     def get_bit(bstring, num):
         return (bstring >> num) & 1
@@ -73,6 +78,7 @@ def opt_get_bit(use_cuda):
     else:
         return get_bit
 
+# decodes player's response for a specific variable in an equation
 def opt_get_var(use_cuda):
     get_bit = opt_get_bit(use_cuda)
     def get_var(bstring, eq_num, bit_num):
@@ -88,6 +94,7 @@ def opt_get_var(use_cuda):
     else:
         return get_var
 
+# for a variable, count pairs of consistent replies (of 6 possible)
 def opt_check_var(use_cuda):
     get_var = opt_get_var(use_cuda)
     def check_var(a, b, eq1, v1, eq2, v2, eq3, v3):
@@ -104,6 +111,7 @@ def opt_check_var(use_cuda):
     else:
         return check_var
 
+# for each variable, count pairs consistent replies (of 90 possible)
 def opt_check_strategy(use_cuda):
     check_var = opt_check_var(use_cuda)
     def check_strategy(a, b):
@@ -124,7 +132,9 @@ BLOCKS_PER_GRID = 256
 THREADS_PER_BLOCK = 256
 
 #STRATEGY_RANGE = 1 << 30
-STRATEGY_RANGE = 1 << 16
+STRATEGY_RANGE = 1 << 20
+#STRATEGY_RANGE = 1 << 18 # 40 sec
+#STRATEGY_RANGE = 1 << 16 # 4 sec
 RANGE_PER_THREAD = STRATEGY_RANGE / (THREADS_PER_BLOCK * BLOCKS_PER_GRID)
 
 @cuda.jit
@@ -144,15 +154,15 @@ def check_strategies(io):
     io[pos][1] = min_b_strat
     io[pos][2] = min_val
 
-#data = np.zeros((BLOCKS_PER_GRID * THREADS_PER_BLOCK, 3), dtype=int)
-#t = datetime.now()
-#check_strategies[BLOCKS_PER_GRID, THREADS_PER_BLOCK](data)
-#print("Took time", datetime.now() - t)
-#temp = data[0]
-#for x in data:
-#    if x[2] < temp[2]:
-#        temp = x
-#print(temp)
+data = np.zeros((BLOCKS_PER_GRID * THREADS_PER_BLOCK, 3), dtype=int)
+t = datetime.now()
+check_strategies[BLOCKS_PER_GRID, THREADS_PER_BLOCK](data)
+print("Took time", datetime.now() - t)
+temp = data[0]
+for x in data:
+   if x[2] < temp[2]:
+       temp = x
+print(temp)
 
-print(check_strategy(10244, 32840))
-print(check_strategy(32840, 10244))
+# print(check_strategy(10244, 32840))
+# print(check_strategy(32840, 10244))
