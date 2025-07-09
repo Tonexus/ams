@@ -1,7 +1,7 @@
 from datetime import datetime
 
 import numpy as np
-from numba import cuda
+from numba import cuda, void, int32
 
 # eq 14, bits 28-29: IX XI XX
 # eq 13, bits 26-27: IY XI XY
@@ -94,11 +94,12 @@ def opt_get_var(use_cuda):
     else:
         return get_var
 
-# for a variable, count pairs of consistent replies (of 6 possible)
+# for a variable, count pairs of inconsistent replies (of 6 possible)
 def opt_check_var(use_cuda):
     get_var = opt_get_var(use_cuda)
     def check_var(a, b, eq1, v1, eq2, v2, eq3, v3):
         acc = 0
+        # inconsistent when xor of output bits is 1
         acc = acc + (get_var(a, eq1, v1) ^ get_var(b, eq2, v2))
         acc = acc + (get_var(a, eq1, v1) ^ get_var(b, eq3, v3))
         acc = acc + (get_var(a, eq2, v2) ^ get_var(b, eq1, v1))
@@ -111,7 +112,7 @@ def opt_check_var(use_cuda):
     else:
         return check_var
 
-# for each variable, count pairs consistent replies (of 90 possible)
+# for each variable, count pairs inconsistent replies (of 90 possible)
 def opt_check_strategy(use_cuda):
     check_var = opt_check_var(use_cuda)
     def check_strategy(a, b):
@@ -127,42 +128,54 @@ def opt_check_strategy(use_cuda):
 check_strategy = opt_check_strategy(False)
 cuda_check_strategy = opt_check_strategy(True)
 
+# cuda parameters
 DIM = 1
-BLOCKS_PER_GRID = 256
-THREADS_PER_BLOCK = 256
+BLOCKS_PER_GRID = 512
+THREADS_PER_BLOCK = 512
+MERGE_THREADS = 1024
 
-#STRATEGY_RANGE = 1 << 30
-STRATEGY_RANGE = 1 << 20
-#STRATEGY_RANGE = 1 << 18 # 40 sec
-#STRATEGY_RANGE = 1 << 16 # 4 sec
+# range of strategies to test, fully exhaustive is 1 << 30
+STRATEGY_RANGE = 1 << 20 # takes 1.5 min on RTX 4090, so full range takes ~3 yrs
 RANGE_PER_THREAD = STRATEGY_RANGE / (THREADS_PER_BLOCK * BLOCKS_PER_GRID)
 
-@cuda.jit
-def check_strategies(io):
+# check all strategies in range for players a and b
+@cuda.jit(void(int32[:, :]))
+def check_strategies(dout):
     pos = cuda.grid(DIM)
     min_a_strat = 0
     min_b_strat = 0
     min_val = NUM_CHECKS
+    # check strats in range for player a (using cuda threading)
     for j in range(RANGE_PER_THREAD * pos, RANGE_PER_THREAD * (pos + 1)):
+        # check strats in range for player b
         for k in range(STRATEGY_RANGE):
             temp = cuda_check_strategy(j, k)
             if temp < min_val:
                 min_a_strat = j
                 min_b_strat = k
                 min_val = temp
-    io[pos][0] = min_a_strat
-    io[pos][1] = min_b_strat
-    io[pos][2] = min_val
+    dout[pos][0] = min_a_strat
+    dout[pos][1] = min_b_strat
+    dout[pos][2] = min_val
 
-data = np.zeros((BLOCKS_PER_GRID * THREADS_PER_BLOCK, 3), dtype=int)
-t = datetime.now()
+# init data array
+data = cuda.to_device(np.zeros((BLOCKS_PER_GRID * THREADS_PER_BLOCK, 3), dtype=np.int32))
+
+# check strategies
 check_strategies[BLOCKS_PER_GRID, THREADS_PER_BLOCK](data)
+
+print("Starting")
+t = datetime.now()
+host_data = data.copy_to_host()
 print("Took time", datetime.now() - t)
-temp = data[0]
-for x in data:
+temp = host_data[0]
+for x in host_data:
    if x[2] < temp[2]:
        temp = x
-print(temp)
+
+a, b, fails = temp
+
+print("Strategy {} and {} attain win rate of {}/90".format(a, b, 90 - 10))
 
 # print(check_strategy(10244, 32840))
 # print(check_strategy(32840, 10244))
