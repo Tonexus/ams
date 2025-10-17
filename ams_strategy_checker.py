@@ -137,10 +137,9 @@ def print_strategy(bstring):
 DIM = 1
 BLOCKS_PER_GRID = 512
 THREADS_PER_BLOCK = 512
-MERGE_THREADS = 1024
 
 # range of strategies to test, fully exhaustive is 1 << 30
-STRATEGY_RANGE = 1 << 20 # takes 1.5 min on RTX 4090, so full range takes ~3 yrs
+STRATEGY_RANGE = 1 << 30 # takes 1.5 min on RTX 4090, so full range takes ~3 yrs
 RANGE_PER_THREAD = STRATEGY_RANGE / (THREADS_PER_BLOCK * BLOCKS_PER_GRID)
 
 # check all strategies in range for players a and b
@@ -150,15 +149,23 @@ def check_strategies(dout):
     min_a_strat = 0
     min_b_strat = 0
     min_val = NUM_CHECKS
+    # # check strats in range for player a (using cuda threading)
+    # for j in range(RANGE_PER_THREAD * pos, RANGE_PER_THREAD * (pos + 1)):
+        # # check strats in range for player b
+        # for k in range(STRATEGY_RANGE):
+            # temp = cuda_check_strategy(j, k)
+            # if temp < min_val:
+                # min_a_strat = j
+                # min_b_strat = k
+                # min_val = temp
     # check strats in range for player a (using cuda threading)
     for j in range(RANGE_PER_THREAD * pos, RANGE_PER_THREAD * (pos + 1)):
         # check strats in range for player b
-        for k in range(STRATEGY_RANGE):
-            temp = cuda_check_strategy(j, k)
-            if temp < min_val:
-                min_a_strat = j
-                min_b_strat = k
-                min_val = temp
+        temp = cuda_check_strategy(j, j)
+        if temp <= min_val:
+            min_a_strat = j
+            min_b_strat = j
+            min_val = temp
     dout[pos][0] = min_a_strat
     dout[pos][1] = min_b_strat
     dout[pos][2] = min_val
@@ -175,7 +182,7 @@ host_data = data.copy_to_host()
 print("Took time", datetime.now() - t)
 temp = host_data[0]
 for x in host_data:
-    if x[2] < temp[2]:
+    if x[2] <= temp[2]:
         temp = x
 
 a, b, fails = temp
