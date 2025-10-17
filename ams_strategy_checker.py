@@ -128,6 +128,11 @@ def opt_check_strategy(use_cuda):
 check_strategy = opt_check_strategy(False)
 cuda_check_strategy = opt_check_strategy(True)
 
+def print_strategy(bstring):
+    for j in range(15):
+        bits = [opt_get_var(False)(bstring, j, k) for k in range(3)]
+        print(EQS[j], bits)
+
 # cuda parameters
 DIM = 1
 BLOCKS_PER_GRID = 512
@@ -170,12 +175,12 @@ host_data = data.copy_to_host()
 print("Took time", datetime.now() - t)
 temp = host_data[0]
 for x in host_data:
-   if x[2] < temp[2]:
-       temp = x
+    if x[2] < temp[2]:
+        temp = x
 
 a, b, fails = temp
 
-print("Strategy {} and {} attain win rate of {}/90".format(a, b, 90 - 10))
+print("Strategy {} and {} attain win rate of {}/90".format(a, b, 90 - fails))
 
 # print(check_strategy(10244, 32840))
 # print(check_strategy(32840, 10244))
