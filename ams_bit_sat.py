@@ -1,4 +1,10 @@
-var_names = ["ix", "iy", "iz", "xi", "xx", "xy", "xz", "yi", "yx", "yy", "yz", "zi", "zx", "zy", "zz"]
+var_names = [
+    "ix", "iy", "iz",
+    "xi", "xx", "xy",
+    "xz", "yi", "yx",
+    "yy", "yz", "zi",
+    "zx", "zy", "zz"
+]
 equations = [
     ("ix", "xi", "xx", 0),
     ("iy", "xi", "xy", 0),
@@ -21,12 +27,12 @@ max_sat = 0
 
 for j in range(1 << len(var_names)):
     vals = {}
+    # get bit assignment from integer
     for k, name in enumerate(var_names):
         vals[name] = (j >> k) % 2
     sat = 0
     # check satisfaction of each equation
     for var1, var2, var3, result in equations:
-        # if bit assignment satisfies, add to number of satisfied equations
         if (vals[var1] + vals[var2] + vals[var3]) % 2 == result:
             sat += 1
     # check if new max
