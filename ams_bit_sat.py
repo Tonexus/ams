@@ -1,9 +1,7 @@
 var_names = [
-    "ix", "iy", "iz",
-    "xi", "xx", "xy",
-    "xz", "yi", "yx",
-    "yy", "yz", "zi",
-    "zx", "zy", "zz"
+    "ix", "iy", "iz", "xi", "xx",
+    "xy", "xz", "yi", "yx", "yy",
+    "yz", "zi", "zx", "zy", "zz",
 ]
 equations = [
     ("ix", "xi", "xx", 0),
@@ -29,13 +27,11 @@ for j in range(1 << len(var_names)):
     vals = {}
     for k, name in enumerate(var_names):
         vals[name] = (j >> k) % 2
-
     # count satisfied equations
     sat = 0
     for var1, var2, var3, result in equations:
         if (vals[var1] + vals[var2] + vals[var3]) % 2 == result:
             sat += 1
-
     # check if new max
     if sat > max_sat:
         max_sat = sat
