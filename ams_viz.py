@@ -1,5 +1,4 @@
 import numpy as np
-import meshio
 import pyvista as pv
 
 verts = np.array([
