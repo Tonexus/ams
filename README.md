@@ -1,3 +1,5 @@
+## Augmented magic square game scripts
+
 ![Rotating Tetrahedron](./ams.gif)
 
 Python scripts for the paper *Beyond the Magic Square Game: Widening the Gap for
